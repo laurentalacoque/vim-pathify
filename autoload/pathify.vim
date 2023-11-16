@@ -29,9 +29,20 @@ function! s:INIT() abort
 
 " }}}
 endfunction
-call s:INIT()
 
-function! Envify()
+function! pathify#Envify(flags='c') abort
+"{{{
+    " should we reload environment ?
+    if exists('g:pathify_reload_environment')
+        echom "pathify: reloading environment..."
+        call s:INIT()
+        echom "pathify: " .. len(keys(s:ENV2PATH)) .. " environment vars containing path"
+        echom "pathify: environ(): " . string(environ())
+
+        unlet g:pathify_reload_environment
+    endif
+
+    " find substitutions
     for envkey in s:ENV2PATH_sorted_keys
         " escape path
         let fullpath = escape(fnameescape(expand(s:ENV2PATH[envkey])),'/')
@@ -39,26 +50,30 @@ function! Envify()
         "TODO can depend on the language
         " ${ENV} / $ENV / $env(ENV) / ...
         let substitution = '$'.envkey
-        let substitution = escape(substition,'/')
+        let substitution = escape(substitution,'/')
 
         " check if there's something to find
         if search(fullpath,'cw')
             " there is, run a real substitution with confirmation
-            execute ":%s/".fullpath."/".substitution."/c"
+            execute ":%s/".fullpath."/".substitution."/".a:flags
         endif
     endfor
 
-    for envkey in values(s:ENV2FILE)
+    for envkey in keys(s:ENV2FILE)
         let fullpath = escape(fnameescape(expand(s:ENV2FILE[envkey])),'/')
         "TODO can depend on the language
         " ${ENV} / $ENV / $env(ENV) / ...
         let substitution = '$'.envkey
-        let substitution = escape(substition,'/')
+        let substitution = escape(substitution,'/')
         if search(fullpath,'c')
-            execute ":%s/".fullpath."/".substitution."/c"
+            execute ":%s/".fullpath."/".substitution."/".a:flags
         endif
     endfor
+" }}}
 endfunction
+
+
+"}}}
 
 " Helper Functions {{{
 function! s:sort_by_path_length(item1,item2) abort
@@ -70,7 +85,9 @@ function! s:sort_by_path_length(item1,item2) abort
         return 0
     endif
 endfunction
+" }}}
 
-"}}}
+" Init
+call s:INIT()
 
 "vim: fdm=marker
