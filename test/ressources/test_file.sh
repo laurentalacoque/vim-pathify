@@ -13,3 +13,7 @@ setenv MODULE1 = "@@/projects/proj1/module1"
 setenv MODULE1INC = "$MODULE1/include/"
 setenv HEADER = "$MODULE1/include/module1.h"
 # end test2
+
+# begin test-home
+@@/home/user/READMENOT
+# end test-home

@@ -156,7 +156,7 @@ endfunction
 
 function! s:tc.test_substitute_recursive()
     let $PROJECTS = s:ROOT."/projects"
-    let $MODULE1 = s:ROOT."/projects/module1"
+    let $MODULE1 = s:ROOT."/projects/proj1/module1"
     let $MODULE1INC = s:ROOT."/projects/proj1/module1/include"
     let expected = [
                 \ 'setenv MODULE1 = "$PROJECTS/proj1/module1"',
@@ -174,6 +174,23 @@ function! s:tc.test_substitute_recursive()
         if i == 2
             let message = "Failed recursive substitution"
         endif
+        call self.assert_equal(expected[i], result[i], message)
+    endfor
+endfunction
+
+function! s:tc.test_substitute_home()
+    let $HOME = s:ROOT."/home/user"
+    let expected = [
+                \ '~/READMENOT',
+            \]
+
+    call self.data.goto('test-home')
+    call self.substitute_path_root()
+
+    call pathify#Envify('')
+    let result = self.data.get('test-home')
+    let message = "Invalid substitution"
+    for i in range(len(result))
         call self.assert_equal(expected[i], result[i], message)
     endfor
 endfunction
