@@ -1,0 +1,68 @@
+*pathify.txt* Scripts for path manipulations                                 ~
+                                                                             ~
+                           ┓ •┏                                             ~
+                      ┏┓┏┓╋┣┓┓╋┓┏                                            ~
+                      ┣┛┗┻┗┛┗┗┛┗┫                                            ~
+                      ┛         ┛                                            ~
+
+Authors: Laurent Alacoque                                                    ~
+Version: 0.1                                                                 ~
+Date   : Nov 2023                                                            ~
+                                                             *pathify-copyright*
+Copyright: (c) 2023 by the authors                                    ~
+           The VIM LICENSE applies to VLSI plugin~
+           (see |copyright|) except use vlsi instead of "Vim".~
+           NO WARRANTY, EXPRESS OR IMPLIED.  USE AT-YOUR-OWN-RISK.~
+
+INTRODUCTION
+
+pathify is a vim module that helps with the substitution of environment
+variables into paths.
+
+Notes:
+    - pathify can substitute environment variables known to vim, i.e. the
+      environment that was loaded when vim started (you may want to source
+      some files before launching vim)
+
+    - you can add some environment variables before substitution by using vim
+      builtin :let command. e.g. ':let $MYENVVAR = 'MYENVVARCONTENT'
+
+    - among the environment variable known by vim, ONLY the one that points to
+      a file or a directory are used for substitution, any '$UNKNOWNVAR' will
+      be left as-is.
+
+GLOBAL FUNCTIONS
+                                                                *pathify#Envify*
+pathify#Envify({flags})
+    Substitute environment variables into path.
+    Example, if $HOME is an environement variable that points to you home dir
+    '/home/user/me', >
+    <before> setenv BIN = /home/user/me/bin
+    :call pathify#Envify()
+    <after> setenv BIN = ~/bin
+<
+    {flags} can be 'c' (the default) for confirmation at every substitution or
+    '' to force all substitutions
+
+                                                                *pathify#Pathify*
+pathify#Pathify({flags})
+    Do the opposite of |pathify#Envify|: substitute every known environment
+    variable with its full path.
+    Example, if $HOME is an environement variable that points to you home dir
+    '/home/user/me', >
+    <before> setenv BIN = ~/bin
+    :call pathify#Envify()
+    <after> setenv BIN = /home/user/me
+<
+    {flags} can be 'c' (the default) for confirmation at every substitution or
+    '' to force all substitutions
+
+GLOBAL VARIABLES
+                                                   *g:pathify_reload_environment*
+    g:pathify_reload_environment if the variable exists, force pathify to
+    reload environment variables for the next function call. The default is
+    to retrieve environment variables only once at startup. Should you change
+    the environment in vim (e.g. :let $MYVAR = "MYVALUE"), you must 
+    'let g:pathify_reload_environment = 1' in order for your changes to be 
+    considered.
+                                                  
