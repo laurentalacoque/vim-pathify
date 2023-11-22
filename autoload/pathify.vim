@@ -107,7 +107,7 @@ function! pathify#Pathify(flags='c') abort
         else
             " no confirmation needed
             let line = getline(item.line)
-            let line = substitute(line,escape(item.path,'/$.'),escape(item.factorized,'&~/'),a:flags)
+            let line = substitute(line,escape(item.path,'/$.'),escape(item.expanded,'&~/'),a:flags)
             "substitute line in buffer
             call setline(item.line,line)
         endif
