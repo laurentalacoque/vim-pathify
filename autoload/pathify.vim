@@ -1,9 +1,22 @@
+" Bailout when we're below 8.2
+if (v:version < 802)
+    echohl ErrorMsg
+    echo "Pathify needs vim > 8.2, bailing out"
+    echohl None
+    finish
+endif
+
 " SCRIPT VARIABLES {{{
 " s:ENV2PATH is a dictionnary that contain all environment variables (keys) that contain a directory (value)
 let s:ENV2PATH = {}
 let s:ENV2PATH_sorted_keys = [] "keys of ENV2PATH sorted by value length
 " s:ENV2FILE is a dictionnary that contain all environment variables (keys) that contain a file (value)
 let s:ENV2FILE = {}
+
+let s:valid_chars_in_path = '[a-zA-Z0-9_ ~.@$\/-]'
+let s:path_pattern = '\('.. s:valid_chars_in_path .. '*\/' .. s:valid_chars_in_path .. '\+\)'
+let s:pattern_escape_list = '/$~.'
+let s:substitution_escape_list = '&/$~'
 "}}}
 
 " initialization from environment
@@ -13,7 +26,7 @@ function! s:INIT() abort
     " Handle PATH
     """""""""""""""""""""""""""""""""""""""""""""""""""""
     " prefilter: must contain '/'
-    let subset        = filter(environ(), 'v:val =~# "\/"')
+    let subset        = filter(environ(), 'v:val =~# "'.. s:valid_chars_in_path ..'"')
     let subset['CWD'] = getcwd()
     " filter: must be a directory
     let s:ENV2PATH = filter(subset,'isdirectory(expand(v:val))')
@@ -24,7 +37,7 @@ function! s:INIT() abort
     " Handle FILES
     """""""""""""""""""""""""""""""""""""""""""""""""""""
     " prefilter: must look like a file
-    let subset         = filter(environ(), 'v:val =~# "^[a-zA-Z0-9_. ~/-]\\+$"')
+    let subset         = filter(environ(), 'v:val =~# "^'.. s:valid_chars_in_path..'\+$"')
     " filter: must be a readable file
     let s:ENV2FILE = filter(subset, 'filereadable(expand(v:val))')
 
@@ -64,7 +77,10 @@ function! pathify#Envify(flags='c') abort
         else
             " no confirmation needed
             let line = getline(item.line)
-            let line = substitute(line,escape(item.path,'/$.'),escape(item.factorized,'&~/'),a:flags)
+            let line = substitute(line,
+                        \ escape(item.path,s:pattern_escape_list),
+                        \ escape(item.factorized,s:substitution_escape_list),
+                        \ a:flags)
             "substitute line in buffer
             call setline(item.line,line)
         endif
@@ -107,7 +123,10 @@ function! pathify#Pathify(flags='c') abort
         else
             " no confirmation needed
             let line = getline(item.line)
-            let line = substitute(line,escape(item.path,'/$.'),escape(item.expanded,'&~/'),a:flags)
+            let line = substitute(line,
+                        \ escape(item.path,s:pattern_escape_list),
+                        \ escape(item.expanded,s:substitution_escape_list),
+                        \ a:flags)
             "substitute line in buffer
             call setline(item.line,line)
         endif
@@ -147,19 +166,24 @@ function! s:get_buffer_paths() abort
         let item = #{line : line}
         let curline = getline(line)
 
-        let path = matchlist(curline, '\([a-zA-Z0-9_ ~.@$\/-]*\/[a-zA-Z0-9_ ~.@$\/-]\+\)')
+        let path = matchlist(curline, s:path_pattern)
         if !empty(path)
             let item.path = path[1]
             " replace ./ by $CWD/ for substitution
             let item.expanded = substitute(item.path,'^\.\/',s:ENV2PATH['CWD'] .. '\/','')
             let item.expanded = expand(item.expanded)
 
+            let item.isfile = filereadable(item.expanded)
+            let item.isdir  = 
+
             " initialize factorized
             let item.factorized = item.expanded
 
             " substitute every possible ENV value starting with the largest one
             for envkey in env_keys_sorted
-                let fullpath = escape(fnameescape(expand(env[envkey])),'/$.')
+                let fullpath = escape(
+                            \ fnameescape(expand(env[envkey])),
+                            \ s:pattern_escape_list)
                 " by what we will substitute
                 if envkey ==# "HOME"
                     let substitution = '~'
@@ -171,7 +195,7 @@ function! s:get_buffer_paths() abort
                     let substitution = '$'.envkey
                 endif
 
-                let substitution = escape(substitution,'/$.~')
+                let substitution = escape(substitution,s:substitution_escape_list)
 
                 "don't substitute when the path is preceded by the same environment variable
                 "This is to avoid to have autorefs like 'setenv HOME = $HOME
@@ -209,7 +233,7 @@ function! s:substitute_with_prompt(line,search,substitution)
     let l:curline = getline(a:line)
 
     "highlight search but only on the current line '\%23l<pattern>'
-    execute 'match Search /\%'.. a:line .."l".escape(a:search,'/$.~')."/"
+    execute 'match Search /\%'.. a:line .."l".escape(a:search,s:pattern_escape_list)."/"
     redraw
 
     " ask for permission
@@ -223,7 +247,9 @@ function! s:substitute_with_prompt(line,search,substitution)
     " decide what to do
     if len(l:prompt) == 0 || l:prompt ==? "y" || l:prompt ==? "a"
 
-        let l:curline = substitute(l:curline,escape(a:search,'/$.~'),escape(a:substitution,'&~/~'),'')
+        let l:curline = substitute(l:curline,
+                    \ escape(a:search,s:pattern_escape_list),
+                    \ escape(a:substitution,s:substitution_escape_list),'')
         "substitute line in buffer
         call setline(a:line,l:curline)
 
