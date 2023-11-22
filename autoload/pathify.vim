@@ -29,6 +29,11 @@ function! s:INIT() abort
     let subset        = filter(environ(), 'v:val =~# "'.. s:valid_chars_in_path ..'"')
     let subset['CWD'] = getcwd()
     " filter: must be a directory
+    " TODO some environment variables can be simple directory names
+    " TODO such as 'subpath' and still be used in other paths
+    " TODO example /path/to/$SUBPATH/fullpath
+    " TODO 'isdirectory' here might be too restrictive but expand() works with the full environment
+    " TODO so... there's that.
     let s:ENV2PATH = filter(subset,'isdirectory(expand(v:val))')
     let s:ENV2PATH_sorted_keys = sort(keys(s:ENV2PATH),function('s:sort_by_path_length'))
 
@@ -134,6 +139,29 @@ function! pathify#Pathify(flags='c') abort
     endfor
 
 " }}}
+endfunction
+
+" search for the invalid paths in file
+function! pathify#Checkify(clear=0)
+    " clear highlights
+    match
+    if a:clear
+        return
+    endif
+
+    "" check for invalid path
+    let b:pathify_invalid_paths = filter(s:get_buffer_paths(), 'v:val["isvalid"] == 0')
+
+    let first_error_line = 0
+    for item in b:pathify_invalid_paths
+        if !first_error_line
+            let first_error_line = item.line
+        endif
+        "highlight search but only on the current line '\%23l<pattern>'
+        execute 'match ErrorMsg /\%'.. item.line .."l".escape(item.path,s:pattern_escape_list)."/"
+    endfor
+    "move to first error
+    call cursor(first_error_line, 1)
 endfunction
 
 
@@ -316,6 +344,9 @@ function! pathify#DBG_get_environment()
         echom "    ". item['path'] . " (". item['line'].")"
         echom "          expanded: " . item['expanded']
         echom "        factorized: " . item['factorized']
+        echom "           isvalid: "    .. item.isvalid ..
+                    \ "    isfile: " .. item.isfile..
+                    \ "    isdir: "  .. item.isdir
     endfor
     return #{ENV2PATH : s:ENV2PATH, ENV2FILE: s:ENV2FILE, ENV2PATH_sorted_keys: s:ENV2PATH_sorted_keys}
 endfunction
