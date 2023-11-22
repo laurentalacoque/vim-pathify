@@ -161,7 +161,7 @@ function! s:get_buffer_paths() abort
 
     " find all path in current buffer
     normal! 1G
-    let line = search('\/','cW')
+    let line = search(s:path_pattern,'cW')
     while line !=0
         let item = #{line : line}
         let curline = getline(line)
@@ -169,13 +169,18 @@ function! s:get_buffer_paths() abort
         let path = matchlist(curline, s:path_pattern)
         if !empty(path)
             let item.path = path[1]
+
+            """" item.expanded : longest path
             " replace ./ by $CWD/ for substitution
             let item.expanded = substitute(item.path,'^\.\/',s:ENV2PATH['CWD'] .. '\/','')
             let item.expanded = expand(item.expanded)
 
+            """ now that we have the expanded path, check if it is a valid directory or file
             let item.isfile = filereadable(item.expanded)
-            let item.isdir  = 
+            let item.isdir  = isdirectory(item.expanded)
+            let item.isvalid = item.isfile || item.isdir
 
+            """ item.factorized : most environment variables
             " initialize factorized
             let item.factorized = item.expanded
 
