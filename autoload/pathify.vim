@@ -163,7 +163,7 @@ function! pathify#CheckPath(clear=0)
             let first_error_line = item.line
         endif
         "highlight search but only on the current line '\%23l<pattern>'
-        call matchadd('ErrorMsg','\%'.. item.line .."l".escape(item.path,s:pattern_escape_list))
+        call matchadd('PathifyUnkPath','\%'.. item.line .."l".escape(item.path,s:pattern_escape_list))
     endfor
     "move to first error
     call cursor(first_error_line, 1)
@@ -186,12 +186,12 @@ function! pathify#CheckEnv(clear=0)
             let first_error_line = item.line
         endif
 
-        " By default highlight with errormsg
-        let highlight_group = 'ErrorMsg'
+        " By default highlight with unknown env
+        let highlight_group = 'PathifyUnkEnv'
         if item.inenviron
             " item in environment but not in ENV2PATH / ENV2FILE
-            " highlight using class todo
-            let highlight_group = 'Todo'
+            " highlight using class PathifyNotPathEnv
+            let highlight_group = 'PathifyNotPathEnv'
         endif
 
         "highlight search but only on the current line '\%23l<pattern>'
@@ -447,6 +447,12 @@ function! pathify#DBG_get_environment()
     endfor
     return #{ENV2PATH : s:ENV2PATH, ENV2FILE: s:ENV2FILE, ENV2PATH_sorted_keys: s:ENV2PATH_sorted_keys}
 endfunction
+"}}}
+
+" Color highlights {{{
+highlight default PathifyUnkPath    term=standout cterm=bold ctermfg=7 ctermbg=1 guifg=White guibg=OrangeRed
+highlight default PathifyUnkEnv     term=standout cterm=bold ctermfg=7 ctermbg=1 guifg=black guibg=OrangeRed
+highlight default PathifyNotPathEnv term=standout cterm=bold ctermfg=7 ctermbg=1 guifg=black guibg=gold
 "}}}
 
 " vim: :fdm=marker
