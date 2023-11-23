@@ -57,6 +57,29 @@ pathify#Pathify({flags})
     {flags} can be 'c' (the default) for confirmation at every substitution or
     '' to force all substitutions
 
+                                                                *pathify#CheckPath*
+pathify#CheckPath({clear})
+    Find all pathlike elements in the current buffer and check for their validity
+    If the path element contains known environment variables path are checked after
+    environment variable substitution.
+
+    If a path to a nonexistent path is found, it is highlighted as 'ErrorMsg' and the
+    cursor is moved to the first invalid path line
+
+    if {clear} is true, don't check for bad path, clear marking instead (you can use 
+    ':match' instead)
+
+                                                                *pathify#CheckEnv*
+pathify#CheckEnv({clear})
+    Find all envlike elements in the current buffer and check for their validity
+    If the env element is not known, it is highlighted as 'ErrorMsg' and the cursor
+    is moved to the first invalid environment variable
+    It the env element is known but doesn't point to a file nor directory, it
+    is highlighted as 'Todo'
+
+    if {clear} is true, don't check for unknown environment variable,
+    clear marking instead (you can use ':match' instead)
+
 GLOBAL VARIABLES
                                                    *g:pathify_reload_environment*
     g:pathify_reload_environment if the variable exists, force pathify to

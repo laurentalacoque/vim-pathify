@@ -15,8 +15,13 @@ let s:ENV2FILE = {}
 
 let s:valid_chars_in_path = '[a-zA-Z0-9_ ~.@$\/-]'
 let s:path_pattern = '\('.. s:valid_chars_in_path .. '*\/' .. s:valid_chars_in_path .. '\+\)'
+" those are used to escape() in search and substitutions
 let s:pattern_escape_list = '/$~.'
 let s:substitution_escape_list = '&/$~'
+
+let s:valid_chars_in_env = '[a-zA-Z0-9.@_-]'
+
+
 "}}}
 
 " initialization from environment
@@ -142,9 +147,9 @@ function! pathify#Pathify(flags='c') abort
 endfunction
 
 " search for the invalid paths in file
-function! pathify#Checkify(clear=0)
+function! pathify#CheckPath(clear=0)
     " clear highlights
-    match
+    call clearmatches()
     if a:clear
         return
     endif
@@ -158,7 +163,39 @@ function! pathify#Checkify(clear=0)
             let first_error_line = item.line
         endif
         "highlight search but only on the current line '\%23l<pattern>'
-        execute 'match ErrorMsg /\%'.. item.line .."l".escape(item.path,s:pattern_escape_list)."/"
+        call matchadd('ErrorMsg','\%'.. item.line .."l".escape(item.path,s:pattern_escape_list))
+    endfor
+    "move to first error
+    call cursor(first_error_line, 1)
+endfunction
+
+" search for the invalid paths in file
+function! pathify#CheckEnv(clear=0)
+    " clear highlights
+    call clearmatches()
+    if a:clear
+        return
+    endif
+
+    "" check for invalid env
+    let b:pathify_invalid_envs = filter(s:get_buffer_envvars(), 'v:val["cansubstitute"] == 0')
+
+    let first_error_line = 0
+    for item in b:pathify_invalid_envs
+        if !first_error_line
+            let first_error_line = item.line
+        endif
+
+        " By default highlight with errormsg
+        let highlight_group = 'ErrorMsg'
+        if item.inenviron
+            " item in environment but not in ENV2PATH / ENV2FILE
+            " highlight using class todo
+            let highlight_group = 'Todo'
+        endif
+
+        "highlight search but only on the current line '\%23l<pattern>'
+        call matchadd(highlight_group,'\%'.. item.line .."l".escape(item.env,s:pattern_escape_list))
     endfor
     "move to first error
     call cursor(first_error_line, 1)
@@ -255,6 +292,45 @@ function! s:get_buffer_paths() abort
     return all_path
 endfunction
 
+function! s:get_buffer_envvars() abort
+    let find_env_pat = s:get_envref_patterns()
+    let all_env = []
+
+    "echom "patterns: " .. string(find_env_pat)
+    " remember cursor position
+    let cursorpos = getcurpos()[1:]
+
+    " find all environment variables in current buffer
+    normal! 1G
+    " search throughout the buffer
+    let line = search(find_env_pat,'cW')
+    while line !=0
+        " found a match
+        let item = #{line : line}
+        let curline = getline(line)
+
+        let env = matchlist(curline, find_env_pat)
+        if !empty(env)
+            let item.env = env[1]
+            let item.inenviron = exists('$'.item.env)
+            let item.inpath = has_key(s:ENV2PATH,item.env)
+            let item.infile = has_key(s:ENV2FILE,item.env)
+            let item.cansubstitute = item.inpath || item.infile
+            let all_env += [item]
+        endif
+
+        "next occurence, move to end of line to avoid multiple matches
+        normal! $
+        let line = search('\/','W')
+    endwhile
+
+    "restore cursor position
+    call cursor(cursorpos)
+    " return env
+    return all_env
+
+    
+endfunction
 
 " highlight search on the current line and prompt for substitution
 function! s:substitute_with_prompt(line,search,substitution)
@@ -313,6 +389,27 @@ function! s:sort_by_path_length(item1,item2) abort
     else
         return 0
     endif
+endfunction
+
+" helper function that builds a search pattern
+" from a list of valid forms ['$#'] means env vars
+" are referenced like $ENVVAR. ['$#','${#}'] means
+" $ENVVAR and ${ENVVAR} are both valid
+function! s:get_envref_patterns(forms = ['$#', '${#}', '$env(#)']) abort
+    let forms = a:forms
+    "TODO replace with b:pathify_envref_forms if it exists?
+    "
+    " build escaped env reference pattern list
+    let envref_pattern_list = []
+    for form in forms
+        " substitute '#' with \(ENV\)
+        let pattern = substitute(
+                    \ escape(form,s:pattern_escape_list),
+                    \ '#', 
+                    \ '\\('.s:valid_chars_in_env.'\\+\\)','')
+        let envref_pattern_list += [pattern]
+    endfor
+    return join(envref_pattern_list,'\|')
 endfunction
 " }}}
 
